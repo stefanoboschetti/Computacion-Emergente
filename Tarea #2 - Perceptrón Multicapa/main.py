@@ -1,5 +1,6 @@
 import csv, math, random
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Validar que los inputs de texto sean correctos c:
 def inputv(var, valid_values, text):
@@ -84,36 +85,53 @@ def load_perceptron():
 
 # ✅
 def do_backpropagation(red, sizes):
-    while(True):
+    while True:
         q4 = "0"
         try:
-            q4 = inputv(q4, (1,2,3,4,5,9),f"Selecciona un archivo para realizar las pruebas \n(1)2-d_2-class_test \n(2)3-d_4-class_test \n(3)Otro \n(9)Volver \n-> ")
-            match(q4):
-                case 1:
-                    file_name = "2-d_2-class_train"
-                case 2:
-                    file_name = "3-d_4-class_train"
-                case 3:
-                    file_name = input(f"Ingrese el nombre del archivo. (No incluir '.csv') \nPor la forma de la red neuronal:\nLos datos deben tener {sizes[0]}d de entrada y {sizes[1]}d de salida.  \n->")
-                case 9:
-                    return
+            q4 = inputv(q4, (1,2,3,4,5,9), "Selecciona un archivo para realizar las pruebas \n(1)2-d_2-class_train \n(2)3-d_4-class_train \n(3)Otro \n(9)Volver \n-> ")
+            match q4:
+                case 1: file_name = "2-d_2-class_train"
+                case 2: file_name = "3-d_4-class_train"
+                case 3: file_name = input(f"Ingrese el nombre del archivo. (No incluir '.csv') \nPor la forma de la red neuronal:\nLos datos deben tener {sizes[0]}d de entrada y {sizes[1]}d de salida.  \n->")
+                case 9: return
 
-            x,y = read_csv(file_name)
-            dimensiones_entrada = len(x)
-            if dimensiones_entrada != sizes[0] or 1 != sizes[1]:
+            x, y = read_csv(file_name)
+            if len(x) != sizes[0] or sizes[1] != 1:
                 print(f"¡Error! Las dimensiones de entrada/salida no son compatibles con la red neuronal de {sizes[0]}d de entrada y {sizes[1]}d de salida.\n")
-            else:
-                break
+            else: break
         except:
             print("¡Error! Nombre de archivo invalido o archivo incompatible.")
     
     q4 = ""
-    while(not str(q4).isnumeric()): q4 = input("Número de epocas a realizar?\n ->")
+    while not q4.isnumeric(): q4 = input("Número de épocas a realizar?\n ->")
     q4 = int(q4)
 
+    errores = []  # Para guardar error por época
+    alpha = float(input("Learning Rate (e.g. 0.05)-> "))
     for epoch in range(q4):
-        print(f"Epoca #{epoch}")
-        backpropagation(red, file_name)
+        backpropagation(red, file_name, alpha)
+        # Calcular error cuadrático medio
+        resultados, _ = feedforward(red, x)
+        y_norm, _ = normalize_classes(y)
+        error_epoca = 0
+        for i in range(len(x[0])):
+            error_epoca += (resultados[i][-1][0] - y_norm[i])**2
+        error_epoca /= len(x[0])
+        errores.append(error_epoca)
+        print(f"Época {epoch+1} - Error: {error_epoca:.4f}")
+
+    # Mostrar gráfico de error por época
+    plt.figure("Error por época")
+    plt.plot(range(1, q4+1), errores, marker='o')
+    plt.xlabel("Época")
+    plt.ylabel("Error cuadrático medio")
+    plt.title("Error de la red durante el entrenamiento")
+    plt.grid(True)
+    plt.show()
+
+    # Mostrar scatter con coincidencias
+    show_scatter(resultados, x, y)
+    resultados, _ = feedforward(red, x)
 
 # ✅
 def classify(value,y):
@@ -128,8 +146,8 @@ def normalize_classes(y):
     return [mapping[val] for val in y], mapping
 
 # ✅
-def backpropagation(red, file_name):
-    alpha = 0.1
+def backpropagation(red, file_name, a):
+    alpha = a
     x, y = read_csv(file_name)
     y_norm, mapping = normalize_classes(y)
     resultados, sumatorias = feedforward(red, x)
@@ -173,37 +191,61 @@ def backpropagation(red, file_name):
 
                     red[capa][j][k] -= alpha * deltas[capa][j] * entrada_valor
 
+
+def mostrar_matriz_confusion(y_real, y_pred):
+    classes = sorted(list(set(y_real)))
+    n_classes = len(classes)
+    class_to_idx = {c:i for i,c in enumerate(classes)}
+
+    # Crear matriz
+    mat_conf = np.zeros((n_classes, n_classes))
+    for i in range(len(y_real)):
+        mat_conf[class_to_idx[y_real[i]], class_to_idx[y_pred[i]]] += 1
+
+    plt.figure("Matriz de Confusión")
+    plt.imshow(mat_conf, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Matriz de Confusión")
+    plt.colorbar()
+
+    tick_marks = np.arange(n_classes)
+    plt.xticks(tick_marks, classes)
+    plt.yticks(tick_marks, classes)
+
+    plt.xlabel("Predicho")
+    plt.ylabel("Real")
+
+    # Mostrar los números dentro de cada celda
+    for i in range(n_classes):
+        for j in range(n_classes):
+            plt.text(j, i, int(mat_conf[i, j]), ha="center", va="center", color="red")
+
+    plt.show()
+
 # ✅
 def do_feedforward(red, sizes):
-    x = []
-    y = []
-    while(True):
+    while True:
         q3 = "0"
         try:
-            q3 = inputv(q3, (1,2,3,4,5,9),f"Selecciona un archivo para realizar las pruebas \n(1)2-d_2-class_test \n(2)3-d_4-class_test \n(3)Otro \n(9)Volver \n-> ")
-            match(q3):
-                case 1:
-                    file_name = "2-d_2-class_test"
-                case 2:
-                    file_name = "3-d_4-class_test"
-                case 3:
-                    file_name = input(f"Ingrese el nombre del archivo. (No incluir '.csv') \nPor la forma de la red neuronal:\nLos datos deben tener {sizes[0]}d de entrada y {sizes[1]}d de salida.  \n->")
-                case 9:
-                    return
+            q3 = inputv(q3, (1,2,3,4,5,9), "Selecciona un archivo para realizar las pruebas \n(1)2-d_2-class_test \n(2)3-d_4-class_test \n(3)Otro \n(9)Volver \n-> ")
+            match q3:
+                case 1: file_name = "2-d_2-class_test"
+                case 2: file_name = "3-d_4-class_test"
+                case 3: file_name = input(f"Ingrese el nombre del archivo. (No incluir '.csv') \nPor la forma de la red neuronal:\nLos datos deben tener {sizes[0]}d de entrada y {sizes[1]}d de salida.  \n->")
+                case 9: return
 
-            x,y = read_csv(file_name)
-            dimensiones_entrada = len(x)
-            if dimensiones_entrada != sizes[0] or 1 != sizes[1]:
+            x, y = read_csv(file_name)
+            if len(x) != sizes[0] or sizes[1] != 1:
                 print(f"¡Error! Las dimensiones de entrada/salida no son compatibles con la red neuronal de {sizes[0]}d de entrada y {sizes[1]}d de salida.\n")
-            else:
-                break
+            else: break
         except:
             print("¡Error! Nombre de archivo invalido o archivo incompatible.")
     
-    # Ahora si empezamos con el feedforward.
-    resultados, sumatorias = feedforward(red,x)#Retorna resultados.
-    
+    resultados, _ = feedforward(red, x)
     show_scatter(resultados, x, y)
+
+    # ---------------- Matriz de confusión ----------------
+    pred = [classify(resultados[i][-1][0], y) for i in range(len(y))]
+    mostrar_matriz_confusion(y,pred)
 
 # ✅
 def feedforward(red, x):
@@ -269,10 +311,8 @@ def show_scatter(resultados, x, y):
     coincidencias = []
     scatter_colors = []
     
-    print(resultados)
     for i, yi in enumerate(y):
         if yi not in classes: classes.append(yi)
-        print(yi,classify(resultados[i][-1][0], y), resultados[i][-1][0])
         if yi == classify(resultados[i][-1][0], y): coincidencias.append(colores[-2][0])
         else: coincidencias.append(colores[-1][0])
     
@@ -280,17 +320,22 @@ def show_scatter(resultados, x, y):
         scatter_colors.append(colores[classes.index(i)][0])
     for j in classes: texto += f"Clase[{j}]: {colores[classes.index(j)][1]} | "
 
-    plt.figure("Valor Esperado")
-    plt.scatter(x[0],x[1], c=scatter_colors, label="1")
+    if (len(x)>2): 
+        plt.figure("Valor Esperado").add_subplot(projection='3d').scatter(x[0],x[1],x[2], c=scatter_colors, label="1")
+    else:
+        plt.figure("Valor Esperado")
+        plt.scatter(x[0],x[1], c=scatter_colors, label="1")
     plt.xlabel(texto)
     plt.get_current_fig_manager().window.geometry("+0+400")
 
-    plt.figure("Coincidencias")
-    plt.scatter(x[0],x[1], c=coincidencias, label="2")
+    if (len(x)>2): 
+        plt.figure("Coincidencias").add_subplot(projection='3d').scatter(x[0],x[1],x[2], c=coincidencias, label="2")
+    else: 
+        plt.figure("Coincidencias")
+        plt.scatter(x[0],x[1], c=coincidencias, label="2")
     plt.xlabel("Rojo: No coinciden, Verde: Coinciden")
     plt.get_current_fig_manager().window.geometry("+1200+400")
     plt.show()
-
 
 # ✅
 def save_network(red, sizes):
