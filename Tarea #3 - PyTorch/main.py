@@ -18,7 +18,6 @@ def train_loop(dataloader, model, loss_fn, optimizer, batch_size):
         # Compute prediction and loss
         pred = model(X)
         loss = loss_fn(pred, y)
-
         # Backpropagation
         loss.backward()
         optimizer.step()
@@ -90,9 +89,8 @@ def mostrar_metricas(conf_matrix):
     print(f"Recall   : {100*recall_macro:.2f}%")
 
 # ✅
-def graficar_matriz_confusion(preds, ys):
-    num_classes = 10
-    conf_matrix = torch.zeros(num_classes, num_classes, dtype=torch.int64)
+def graficar_matriz_confusion(preds, ys, classes):
+    conf_matrix = torch.zeros(classes, classes, dtype=torch.int64)
 
     # Llenar la matriz de confusión
     for t, p in zip(ys, preds):
@@ -100,20 +98,20 @@ def graficar_matriz_confusion(preds, ys):
     
     plt.figure(figsize=(8,6))
     plt.imshow(conf_matrix, interpolation='nearest', cmap='Blues')
-    plt.title('Matriz de Confusión - FashionMNIST')
+    plt.title('Matriz de Confusión')
     plt.colorbar()
 
-    class_names = [
+    if classes == 10: class_names = [
         "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
-        "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"
-    ]
-    plt.xticks(range(num_classes), class_names, rotation=45, ha='right')
-    plt.yticks(range(num_classes), class_names)
+        "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+    else: class_names = ["Top", "Bottom", "Footwear", "Bag"]
+    plt.xticks(range(classes), class_names, rotation=45, ha='right')
+    plt.yticks(range(classes), class_names)
     plt.xlabel('Predicción')
     plt.ylabel('Real')
 
-    for i in range(num_classes):
-        for j in range(num_classes):
+    for i in range(classes):
+        for j in range(classes):
             plt.text(j, i, conf_matrix[i, j].item(),
                     ha='center', va='center',
                     color='white' if conf_matrix[i, j] > conf_matrix.max()/2 else 'black')
@@ -123,7 +121,7 @@ def graficar_matriz_confusion(preds, ys):
     plt.show()
 
 # ✅
-def get_FasionMNIST_dataloaders(batch_size):
+def get_FasionMNIST_dataloaders(batch_size, classes):
     training_data = datasets.FashionMNIST(
     root="data",
     train=True,
@@ -137,8 +135,30 @@ def get_FasionMNIST_dataloaders(batch_size):
         download=True,
         transform=ToTensor()
     )
-    train_dataloader = DataLoader(training_data, batch_size=batch_size)
-    test_dataloader = DataLoader(test_data, batch_size=batch_size)
+
+    if classes == 4:
+        # Mapeo original → 4 clases
+        label_map = {
+            0: 0,  # T-shirt/top → Top
+            2: 0,  # Pullover → Top
+            4: 0,  # Coat → Top
+            6: 0,  # Shirt → Top
+            1: 1,  # Trouser → Bottom
+            3: 1,  # Dress → Bottom
+            5: 2,  # Sandal → Footwear
+            7: 2,  # Sneaker → Footwear
+            9: 2,  # Ankle boot → Footwear
+            8: 3,  # Bag → Bag
+        }
+        def remap_targets(dataset):
+            mapped = [label_map[int(y)] for y in dataset.targets]
+            dataset.targets = torch.tensor(mapped, dtype=torch.long)
+
+        remap_targets(training_data)
+        remap_targets(test_data)
+
+    train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
     return train_dataloader, test_dataloader
 
 # ✅
@@ -167,8 +187,8 @@ def input_positive_f(var, text):
     return float(var)
 
 # ✅
-def entrenar_modelo(model, batch_size, epochs, learning_rate):
-    train_dataloader, test_dataloader = get_FasionMNIST_dataloaders(batch_size)
+def entrenar_modelo(model, batch_size, epochs, learning_rate, classes):
+    train_dataloader, test_dataloader = get_FasionMNIST_dataloaders(batch_size, classes)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     errores = []
@@ -179,8 +199,8 @@ def entrenar_modelo(model, batch_size, epochs, learning_rate):
     return errores
 
 # ✅
-def testear_modelo(model, batch_size, epochs, learning_rate):
-    train_dataloader, test_dataloader = get_FasionMNIST_dataloaders(batch_size)
+def testear_modelo(model, batch_size, epochs, learning_rate, classes):
+    train_dataloader, test_dataloader = get_FasionMNIST_dataloaders(batch_size, classes)
     loss_fn = nn.CrossEntropyLoss()
     preds, ys = test(test_dataloader, model, loss_fn)
     return preds, ys
@@ -197,12 +217,30 @@ def modificar_hiperparametros():
 def cargar_modelo():
     while(True):
         try:
-            file_name = input("Ingrese el nombre del archivo. (No incluir '.pth')\n -> ")
+            q="0"
+            q = input_options(q, (1,2,3,4,5), "(1)Red Rectangular [64x4] Fashion MNIST basico. {acc. 86.19%} (10 epocas a 0.15 learning rate)\n" \
+            "(2)Red Convolucional [2] Fashion MNIST basico. {acc. 87.09%} (10 epocas a 0.2 learning rate)\n" \
+            "(3)Red Rectangular [512x3] Fashion MNIST reducido. {acc. 97.41%} (10 epocas a 0.125 learning rate)\n" \
+            "(4)Red Convolucional [3] Fashion MNIST reducido. {acc. 97.37%} (10 epocas a 0.115 learning rate)\n" \
+            "(5)Otra\n" \
+            "-> ")
+            match q:
+                case 1:
+                    file_name = "Rectangular(64x4)Basica(10b-0.15lr)"
+                case 2:
+                    file_name = "Convolucional(2)Basica(10b-0.2lr)"
+                case 3:
+                    file_name = "Rectangular(512x3)Reducido(10b-0.125lr)"
+                case 4:
+                    file_name = "Convolucional(3)Reducido(10b-0.115lr)"
+                case 5:
+                    file_name = input("Ingrese el nombre del archivo. (No incluir '.pth')\n -> ")
+            
             state_dict = torch.load(f'./models/{file_name}.pth', weights_only=False)
             with open(f"./models/{file_name}.csv") as file:
                 data = csv.reader(file)
                 for index, row in enumerate(data):
-                    model = crear_modelo(int(row[0]), int(row[1]), int(row[2]))
+                    model = crear_modelo(int(row[0]), int(row[1]), int(row[2]), int(row[3]))
                     model.load_state_dict(state_dict)  
                     return model
         except:
@@ -214,71 +252,67 @@ def guardar_modelo(model):
     while(True):
         file_name = input("Ingrese el nombre del archivo. (No incluir '.pth')\n -> ")
         torch.save(model.state_dict(), f'./models/{file_name}.pth')   
-        data_rows = [model.tipo, model.capas, model.neuronas]
+        data_rows = [model.tipo, model.capas, model.neuronas, model.clases]
         with open(f"./models/{file_name}.csv", mode='w', newline='') as file:
             csv.writer(file).writerow(data_rows)
         return 
 
-# ➖
-def generar_argumentos(tipo_red, capas_ocultas, neuronas_capa):
-    arguments = [[],[],[]] # model, features, classifier
+# ✅
+def generar_argumentos(tipo_red, capas_ocultas, neuronas_capa, classes):
+    arguments = [] # model_args
     match tipo_red:
 
         case 0:
             #Entrada a capas ocultas.
-            arguments[0].append( nn.Linear(28*28, neuronas_capa) )
-            arguments[0].append( nn.ReLU() )
+            arguments.append( nn.Linear(28*28, neuronas_capa) )
+            arguments.append( nn.ReLU() )
             #Capas ocultas.
             for capa in range(capas_ocultas-1):
-                arguments[0].append( nn.Linear(neuronas_capa, neuronas_capa) )
-                arguments[0].append( nn.ReLU() )
+                arguments.append( nn.Linear(neuronas_capa, neuronas_capa) )
+                arguments.append( nn.ReLU() )
             # Capas ocultas a salida.
-            arguments[0].append( nn.Linear(neuronas_capa, 10) )
+            arguments.append( nn.Linear(neuronas_capa, classes) )
 
         case 1:
-            # #Entrada a capas ocultas.
-            # arguments.append( nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1) )
-            # arguments.append( nn.BatchNorm2d(32) )
-            # arguments.append( nn.ReLU() )
-            # #Capas ocultas.
-            # for capa in range(capas_ocultas-1):
-            #     arguments.append( nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1) )
-            # arguments.append( nn.BatchNorm2d(32) )
-            # arguments.append( nn.ReLU() )
-            # # Capas ocultas a salida.
-            # arguments.append(nn.Linear(neuronas_capa, 10))
+            step = (28*28 - classes) / (capas_ocultas + 1)
+            #Entrada a capas ocultas.
+            arguments.append( nn.Linear( 28*28, int(784 - step) ) )
+            arguments.append( nn.ReLU() )
+            salida = int(784 - step) # Salida en caso de red de 1 capa.
+            #Capas ocultas.
+            for capa in range(capas_ocultas-1):
+                entrada = int((784 - (capa+1)*step))
+                salida =  int((784 - (capa+2)*step))
+                arguments.append( nn.Linear( entrada, salida ) )
+                arguments.append( nn.ReLU() )
+            # Capas ocultas a salida.
+            arguments.append(nn.Linear(salida, classes))
             pass
-
     return arguments
 
-# ➖
-def crear_modelo(tipo_red, capas_ocultas, neuronas_capa):
+# ✅
+def crear_modelo(tipo_red, capas_ocultas, neuronas_capa, classes):
     class NeuralNetwork(nn.Module):
         tipo = tipo_red
         capas = capas_ocultas
         neuronas = neuronas_capa
+        clases = classes
         def __init__(self):
-            model_args, features_args, classifier_args = generar_argumentos(tipo_red, capas_ocultas, neuronas_capa)
+            model_args = generar_argumentos(tipo_red, capas_ocultas, neuronas_capa, classes)
             super().__init__()
             self.flatten = nn.Flatten()
             self.model = nn.Sequential(*model_args)
-            self.features = nn.Sequential(*features_args)
-            self.classifier = nn.Sequential(*classifier_args)
 
         def forward(self, x):
-            match tipo_red:
-                case 0:
-                    x = self.flatten(x)
-                    logits = self.model(x)
-                    return logits
+            x = self.flatten(x)
+            logits = self.model(x)
+            return logits
 
-                case 1:
-                    pass
-        
     return NeuralNetwork()
 
 # ✅
 def crear_red():
+    classes = 10
     capas_ocultas = 2
     neuronas_capa = 512
     tipo_red = 0 # 0:Rectangular, Convolucional
@@ -286,11 +320,13 @@ def crear_red():
         redes = (f"Rectangular | ({neuronas_capa}) neuronas por capa", "Convolucional")
 
         q1 = "0"
-        q1 = input_options(q1, (1,2,3,9), f"\nRed actual: | {redes[tipo_red]} | ({capas_ocultas}) capas ocultas | \n(1)Finalizar creación de la red. \n(2)Modificar número de capas ocultas. \n(3)Modificar tipo de red (Cambiar nodos por capa en red rectangular). \n(9)Volver. \n->")
+        q1 = input_options(q1, (1,2,3,4,9), f"\nRed actual: | {redes[tipo_red]} | ({capas_ocultas}) capas ocultas | Dataset: {"Fashion MNIST básica" if classes == 10 else "Fashion MNIST de 4 clases"}" \
+            "\n(1)Finalizar creación de la red. \n(2)Modificar número de capas ocultas. \n(3)Modificar tipo de red (Cambiar nodos por capa en red rectangular)." \
+             "\n(4)Cambiar variante de FashionMNIST  \n(9)Volver. \n->")
         
         match q1:
             case 1:
-                return crear_modelo(tipo_red, capas_ocultas, neuronas_capa) #Aquí pasamos una red.
+                return crear_modelo(tipo_red, capas_ocultas, neuronas_capa, classes) #Aquí pasamos una red.
             case 2:
                 capas_ocultas = "0"
                 capas_ocultas = input_natural_n(capas_ocultas, "Número de capas ocultas -> ")
@@ -300,6 +336,13 @@ def crear_red():
                 if tipo_red == 0:
                     neuronas_capa = "0"
                     neuronas_capa = input_natural_n(neuronas_capa, "Número de neuronas por capa -> ")
+                else:
+                    neuronas_capa = 512
+            case 4:
+                q2 = "0"
+                q2 = input_options(q2, (1,2), "(1)Configuración básica de Fashion MNIST [10 clases] \n(2)Configuración reducida de Fashion MNIST [4 clases] \n->")
+                if q2 == 1: classes = 10
+                else: classes = 4
             case 9:
                 return False
 
@@ -322,20 +365,22 @@ def main():
     # Realizar acción en Red Neuronal.
         batch_size = 64
         epochs = 10
-        learning_rate = 0.001
+        learning_rate = 0.05
+        
         while True:
             q2="0"
             redes = (f"Rectangular | ({model.neuronas}) neuronas por capa", "Convolucional")
             print(f"\n--- [RED] | {redes[model.tipo]} | ({model.capas}) capas ocultas | ---")
             print(f"--- [Hiperparametros] | Epocas: ({epochs}) | Batch Size: ({batch_size}) | Learning Rate: ({learning_rate}) | ---")
+            print(f"--- [Dataset] | {"Fashion MNIST básica" if model.clases == 10 else "Fashion MNIST de 4 clases"} | ---")
             q2 = input_options(q2, (1,2,3,4,9), "¿Qué desea hacer? \n(1)Entrenar la red. \n(2)Testear la red. \n(3)Guardar la red. \n(4)Modificar Hiperparametros. \n(9)Volver a seleccionar una Red. \n->")
             match q2:
                 case 1:
-                    errores = entrenar_modelo(model, batch_size, epochs, learning_rate)
+                    errores = entrenar_modelo(model, batch_size, epochs, learning_rate, model.clases)
                     graficar_error_epoca(epochs, errores)
                 case 2:
-                    preds, ys = testear_modelo(model, batch_size, epochs, learning_rate)
-                    graficar_matriz_confusion(preds, ys)
+                    preds, ys = testear_modelo(model, batch_size, epochs, learning_rate, model.clases)
+                    graficar_matriz_confusion(preds, ys, model.clases)
                 case 3:
                     guardar_modelo(model)
                 case 4:
