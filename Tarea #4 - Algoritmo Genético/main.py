@@ -1,5 +1,4 @@
-import random, math, csv, ast
-import numpy as np
+import random, math, csv, ast, statistics
 
 # ✅
 def input_options(var, options, text ):
@@ -97,6 +96,7 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
     PROB_MUTACION = constantes[1]
     PACIENCIA = int(GENERACIONES_MAXIMAS*constantes[0]) # Cuántas generaciones sin mejoras esperamos. 25% del total.
     soluciones = poblacion[4]
+    func_text = ["y = ((sinx)^2) / x", "z = 20 + x - 10Cos(2pi*x) + y - 10Cos(2pi*y)"]
 
     match funcion:
         case 1: # [ y = ((sinx)^2) / x ]
@@ -115,7 +115,7 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
                 fitness_value = [tupla[1] for tupla in eval_sol]
                 max_fitness = fitness_value[0]   # El primero (ya está ordenado)
                 min_fitness = fitness_value[-1]  # El último (ya está ordenado)
-                median_fitness = np.median(fitness_value)
+                median_fitness = statistics.median(fitness_value)
                 print(f"Generación: {gen+1} | Máximo: {max_fitness:.6f} | Mediana: {median_fitness:.6f} | Mínimo: {min_fitness:.6f}")
 
                 #Chequeamos el umbral de diferencia
@@ -148,7 +148,7 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
                     child = ( (w1*x1 + w2*x2) / (w1+w2) )
 
                     # Mutaciones.
-                    if random.random() <= PROB_MUTACION: child = child + np.random.normal(0, VARIABILIDAD_MUTACION)
+                    if random.random() <= PROB_MUTACION: child = child + random.gauss(0, VARIABILIDAD_MUTACION)
 
                     # Nos aseguramos de que el valor este dentro de nuestros limites
                     child = max(-10, min(10, child))
@@ -166,12 +166,12 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
             print("\n--- Proceso finalizado ---")
     
             # Requerimiento: Mostrar parámetros finales y población 
-            print("--- Parámetros de la simulación ---")
+            print("\n--- Parámetros de la simulación ---")
             print(f"Tamaño Población: {TAMAÑO}")
             print(f"Umbral Diferencia: {UMBRAL_DIFERENCIA}")
             print(f"Variabilidad de Mutación: {VARIABILIDAD_MUTACION}")
             print(f"Generaciones transcurridas: {generacion_parada} / {GENERACIONES_MAXIMAS}")
-            
+            print(f"[FUNCIÓN] {func_text[funcion-1]}")
             print("\n--- Población Final (ordenada) ---")
             for i, (x, fitness) in enumerate(eval_final):
                 print(f"{i+1}. x = {x:.8f} | y = {fitness:.8f}")
@@ -195,7 +195,7 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
                 fitness_value = [tupla[1] for tupla in eval_sol]
                 max_fitness = fitness_value[0]   # El primero (ya está ordenado)
                 min_fitness = fitness_value[-1]  # El último (ya está ordenado)
-                median_fitness = np.median(fitness_value)
+                median_fitness = statistics.median(fitness_value)
                 print(f"Generación: {gen+1} | Máximo: {max_fitness:.6f} | Mediana: {median_fitness:.6f} | Mínimo: {min_fitness:.6f}")
 
                 #Chequeamos el umbral de diferencia
@@ -245,10 +245,10 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
                     mutated_hx, mutated_hy = hx, hy # Empezamos con los valores del hijo
                     
                     # Mutar x?
-                    if random.random() <= PROB_MUTACION: mutated_hx = hx + np.random.normal(0, VARIABILIDAD_MUTACION)
+                    if random.random() <= PROB_MUTACION: mutated_hx = hx + random.gauss(0, VARIABILIDAD_MUTACION)
                     
                     # Mutar y?
-                    if random.random() <= PROB_MUTACION: mutated_hy = hy + np.random.normal(0, VARIABILIDAD_MUTACION)
+                    if random.random() <= PROB_MUTACION: mutated_hy = hy + random.gauss(0, VARIABILIDAD_MUTACION)
                         
                     # Aplicamos los límites a ambas dimensiones
                     mutated_hx = max(-10, min(10, mutated_hx))
@@ -270,12 +270,12 @@ def algoritmo_evolutivo(poblacion, constantes, funcion):
             print("\n--- Proceso finalizado ---")
     
             # Requerimiento: Mostrar parámetros finales y población 
-            print("--- Parámetros de la simulación ---")
+            print("\n--- Parámetros de la simulación ---")
             print(f"Tamaño Población: {TAMAÑO}")
             print(f"Umbral Diferencia: {UMBRAL_DIFERENCIA}")
             print(f"Variabilidad de Mutación: {VARIABILIDAD_MUTACION}")
             print(f"Generaciones transcurridas: {generacion_parada} / {GENERACIONES_MAXIMAS}")
-            
+            print(f"[FUNCIÓN] {func_text[funcion-1]}")
             print("\n--- Población Final (ordenada) ---")
             for i, (x, fitness) in enumerate(eval_final):
                 print(f"{i+1}. x = {x[0]:.8f} | y = {x[1]:.8f} | z = {fitness:.8f}")
@@ -289,18 +289,18 @@ def testear_poblacion(poblacion, func):
     UMBRAL_DIFERENCIA = poblacion[1]
     VARIABILIDAD_MUTACION = poblacion[3]
     soluciones = poblacion[4]
-
+    func_text = ["y = ((sinx)^2) / x", "z = 20 + x - 10Cos(2pi*x) + y - 10Cos(2pi*y)"]
     match func:
         case 1:
             eval_sol = []
             for x in soluciones: eval_sol.append( (x, fitness_a(x)) )
             eval_sol.sort(key= lambda x: x[1], reverse=True)
 
-            print("--- Parámetros de la simulación ---")
+            print("\n--- Parámetros de la simulación ---")
             print(f"Tamaño Población: {TAMAÑO}")
             print(f"Umbral Diferencia: {UMBRAL_DIFERENCIA}")
             print(f"Variabilidad de Mutación: {VARIABILIDAD_MUTACION}")
-
+            print(f"[FUNCIÓN] {func_text[func-1]}")
             print("\n--- Población (ordenada) ---")
             for i, (x, fitness) in enumerate(eval_sol):
                 print(f"{i+1}. x = {x:.8f} | y = {fitness:.8f}")
@@ -309,11 +309,11 @@ def testear_poblacion(poblacion, func):
             for tupla in soluciones: eval_sol.append( (tupla, fitness_b(tupla[0], tupla[1])) )
             eval_sol.sort(key= lambda x: x[1], reverse=True)
 
-            print("--- Parámetros de la simulación ---")
+            print("\n--- Parámetros de la simulación ---")
             print(f"Tamaño Población: {TAMAÑO}")
             print(f"Umbral Diferencia: {UMBRAL_DIFERENCIA}")
             print(f"Variabilidad de Mutación: {VARIABILIDAD_MUTACION}")
-            
+            print(f"[FUNCIÓN] {func_text[func-1]}")
             print("\n--- Población (ordenada) ---")
             for i, (x, fitness) in enumerate(eval_sol):
                 print(f"{i+1}. x = {x[0]:.8f} | y = {x[1]:.8f} | z = {fitness:.8f}")
